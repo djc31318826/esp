@@ -714,12 +714,12 @@ esp_err_t ap_sta_info_handler(httpd_req_t *req)
     // httpd_resp_set_hdr(req, "Location", "/index");
 
     // httpd_resp_sendstr(req, "File uploaded successfully");
-    //�?一步获取AP的信�?
+    //第一步获取AP的信息
 
     // httpd_resp_sendstr(req, "AP INFO:\nssid:");
     strcpy(buf, "AP INFO\nssid:");
     strcat(buf, EXAMPLE_ESP_WIFIAP_SSID);
-    strcat(buf, "\n����:");
+    strcat(buf, "\n密码:");
     strcat(buf, EXAMPLE_ESP_WIFIAP_PASS);
     strcat(buf, "\nESP32 AP IP:");
 
@@ -1005,7 +1005,7 @@ static esp_err_t ota_handler(httpd_req_t *req)
     int file_total_len=0;
 
     bool image_header_was_checked = false;
-    //首先获取传输文件的大小�?
+    //首先获取传输文件的大小。
     memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
         ws_pkt.type = HTTPD_WS_TYPE_BINARY; //
 
@@ -1041,7 +1041,7 @@ static esp_err_t ota_handler(httpd_req_t *req)
         //return 0;
         file_total_len=buf[1]+buf[2]*256+buf[3];
 
-        //发送数�?
+        //发送数据
         struct async_resp_arg *resp_arg = malloc(sizeof(struct async_resp_arg));
         resp_arg->hd = handle;
         resp_arg->fd = httpd_req_to_sockfd(req);
@@ -1147,7 +1147,7 @@ static esp_err_t ota_handler(httpd_req_t *req)
             }
             binary_file_length += data_read;
             ESP_LOGD(TAG, "Written image length %d", binary_file_length);
-            //发送数�?
+            //发送数据
             struct async_resp_arg *resp_arg = malloc(sizeof(struct async_resp_arg));
             resp_arg->hd = handle;
             resp_arg->fd = httpd_req_to_sockfd(req);
@@ -1362,7 +1362,7 @@ static esp_err_t ota_handler(httpd_req_t *req)
         }
         binary_file_length += data_read;
         ESP_LOGD(TAG, "Written image length %d", binary_file_length);
-        //发送数�?
+        //发送数据
         struct async_resp_arg *resp_arg = malloc(sizeof(struct async_resp_arg));
         resp_arg->hd = handle;
         resp_arg->fd = httpd_req_to_sockfd(req);
@@ -1525,7 +1525,6 @@ void app_main(void)
     
     esp_netif_t *netif = NULL;
     char buff[128]={0};
-    clr_disp();
     text_out("run...",0,0);invalidate();
     int i=0;
     while ((netif = esp_netif_next(netif)) != NULL)
@@ -1540,16 +1539,11 @@ void app_main(void)
         else
             printf("ERROR,ret=%d,%s\n", ret, esp_netif_get_desc(netif));
         */
-       sprintf(buff,"%s IP:" IPSTR, esp_netif_get_desc(netif), IP2STR(&ip_info.ip));
+       sprintf(buff,"%s:" IPSTR, esp_netif_get_desc(netif), IP2STR(&ip_info.ip));
        text_out(buff,0,16+i*16);invalidate();
        i++;
     }
-    for(i=0;i<sizeof(buff);i++)
-    {
-        buff[i]=0;
-    }
-    sprintf(buff,"AP SSID:%s,����:%s",EXAMPLE_ESP_WIFIAP_SSID,EXAMPLE_ESP_WIFIAP_PASS);
-    text_out(buff,0,48);invalidate();
+    text_out("用户名:djc001,密码:waters001",0,48);invalidate();
 
     xTaskCreate(send_to_all, "send_to_all", 4096, NULL, 5, NULL);
 

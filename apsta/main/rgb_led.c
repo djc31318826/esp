@@ -84,7 +84,7 @@ void rgb_led_init()
    // Clear LED strip (turn off all LEDs)
    ESP_ERROR_CHECK(strip->clear(strip, 100));
    // Show simple rainbow chasing pattern
-   ESP_LOGI("", "LED Rainbow Chase Start");
+   printf("LED Rainbow Chase Start");
    //rgb_led_set(64,64,64);
 }
 
