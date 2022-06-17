@@ -1334,7 +1334,7 @@ static esp_err_t ota_handler(httpd_req_t *req)
 #endif
 
                 image_header_was_checked = true;
-
+                text_out("                ",0,0);text_out("run...to ",0,0);text_out(new_app_info.version,72,0);//不调用invalidate();该命令，否则会和任务中的scroll_x冲突
                 err = esp_ota_begin(update_partition, OTA_WITH_SEQUENTIAL_WRITES, &update_handle);
                 if (err != ESP_OK)
                 {
@@ -1478,7 +1478,7 @@ esp_err_t start_server()
 
     return ESP_OK;
 }
-
+//添加信号量，在其他需要显示时将此任务暂停。
 void send_to_all(void *p)
 {
     while (1)
@@ -1502,9 +1502,15 @@ void app_main(void)
     ESP_ERROR_CHECK(ret);
     //ESP_ERROR_CHECK(init_spiffs());
     oled_init();
-    text_out("Start...",0,0);invalidate();
     const esp_partition_t *running = esp_ota_get_running_partition();
     printf("running address=0x%8.8x\n", running->address);
+
+    esp_app_desc_t running_app_info;
+    if (esp_ota_get_partition_description(running, &running_app_info) == ESP_OK)
+    {
+        ESP_LOGI(TAG, "Running firmware version: %s", running_app_info.version);
+    }
+    text_out("Start...",0,0);text_out(running_app_info.version,64,0);invalidate();
     const esp_partition_t *update_partition = esp_ota_get_next_update_partition(NULL);
     assert(update_partition != NULL);
     ESP_LOGI(TAG, "Writing to partition subtype %d at offset 0x%x",
@@ -1526,7 +1532,7 @@ void app_main(void)
     esp_netif_t *netif = NULL;
     char buff[128]={0};
     clr_disp();
-    text_out("run...",0,0);invalidate();
+    text_out("run...ver:",0,0);text_out(running_app_info.version,80,0);invalidate();
     int i=0;
     while ((netif = esp_netif_next(netif)) != NULL)
     {
@@ -1551,8 +1557,8 @@ void app_main(void)
     sprintf(buff,"AP SSID:%s,密码:%s",EXAMPLE_ESP_WIFIAP_SSID,EXAMPLE_ESP_WIFIAP_PASS);
     text_out(buff,0,48);invalidate();
 
-    xTaskCreate(send_to_all, "send_to_all", 4096, NULL, 5, NULL);
-
+    //xTaskCreate(send_to_all, "send_to_all", 4096, NULL, 5, NULL);
+    xTaskCreatePinnedToCore(send_to_all, "send_to_all", 4096, NULL, 5, NULL,1);
     //size_t exram_size=esp_spiram_get_size();
     //volatile int *p = (volatile int *)(SOC_EXTRAM_DATA_HIGH - exram_size);
     

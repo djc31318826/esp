@@ -88,6 +88,7 @@
         function set_path()
         {
             var dpath = document.getElementById("sel_file").files[0].name;
+
             //document.getElementById("file_path").value=dpath;
         }
         function do_upload()
@@ -110,7 +111,24 @@
                 
                 //for(i=0;i<100;i++)
                 //    console.log(v.getInt8(i))
-                socket1 = new WebSocket("ws://a.djc001.top:8000/ws1");
+                //socket1 = new WebSocket("ws://a.djc001.top:8000/ws1");
+
+                var url=document.location.toString();
+                //http://a.djc001.top:8000/
+                var s_start=url.substr(0,5);
+                if(s_start=="http:")
+                {
+                    url=url.substr(5);
+                    console.log(url);
+                }
+                if(url.charAt(url.length-1)=="/")
+                    url="ws:"+url+"ws1";
+                else
+                    url="ws:"+url+"/ws1";
+                
+                console.log(url);
+
+                socket1 = new WebSocket(url);
                 //socket1.binaryType="arraybuffer";
                 socket1.onopen=s_open
                 socket1.onmessage=onmessage1;
@@ -259,7 +277,26 @@
         window.addEventListener("load", init);
         window.addEventListener("beforeunload", onClose)
         function init() {
-            socket = new WebSocket("ws://a.djc001.top:8000/ws");
+            //socket = new WebSocket("ws://a.djc001.top:8000/ws");
+            //socket = new WebSocket("ws://localhost/ws");
+            var url=document.location.toString();
+            //http://a.djc001.top:8000/
+            var s_start=url.substr(0,5);
+            if(s_start=="http:")
+            {
+                console.log("http is find")
+                console.log(url);
+                url=url.substr(5);
+
+            }
+
+            if(url.charAt(url.length-1)=="/")
+                url="ws:"+url+"ws";
+            else
+                url="ws:"+url+"/ws";
+
+            console.log(url);
+            socket = new WebSocket(url);
             socket.onopen = onOpen;
             socket.onmessage = onMessage;
             document.getElementById("color_pan").value = "#ff0000"

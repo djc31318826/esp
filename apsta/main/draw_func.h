@@ -2,8 +2,8 @@
 
 #define disp_x 128
 #define disp_y 8
-#define ROWS_EXT 80
-#define COLS_EXT 1280
+#define ROWS_EXT disp_y*5
+#define COLS_EXT disp_x*5
 
 //8行，16列
 extern unsigned char frame_buf1[disp_y][disp_x];
