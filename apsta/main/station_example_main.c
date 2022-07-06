@@ -42,7 +42,9 @@
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
-#include "oled.h"
+//#include "oled.h"
+#include "gpio_misc.h"
+#include "lvgl_lcd240x240.h"
 //#include "draw_func.h"
 
 /* The examples use WiFi configuration that you can set via project configuration menu
@@ -1334,7 +1336,7 @@ static esp_err_t ota_handler(httpd_req_t *req)
 #endif
 
                 image_header_was_checked = true;
-                text_out("                ",0,0);text_out("run...to ",0,0);text_out(new_app_info.version,72,0);//不调用invalidate();该命令，否则会和任务中的scroll_x冲突
+                //text_out("                ",0,0);text_out("run...to ",0,0);text_out(new_app_info.version,72,0);//不调用invalidate();该命令，否则会和任务中的scroll_x冲突
                 err = esp_ota_begin(update_partition, OTA_WITH_SEQUENTIAL_WRITES, &update_handle);
                 if (err != ESP_OK)
                 {
@@ -1486,7 +1488,7 @@ void send_to_all(void *p)
         // wss_server_send_messages(&handle);
         sys_delay_ms(10);
         gcnt++;
-        scroll_x();
+        //scroll_x();
     }
 }
 
@@ -1501,7 +1503,14 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
     //ESP_ERROR_CHECK(init_spiffs());
-    oled_init();
+
+    gpio_misc_init();
+
+    xTaskCreatePinnedToCore(guiTask, "gui", 4096*2, NULL, 0, NULL, 1);
+
+    //lv_example_get_started_1();
+
+    //oled_init();
     const esp_partition_t *running = esp_ota_get_running_partition();
     printf("running address=0x%8.8x\n", running->address);
 
@@ -1510,7 +1519,7 @@ void app_main(void)
     {
         ESP_LOGI(TAG, "Running firmware version: %s", running_app_info.version);
     }
-    text_out("Start...",0,0);text_out(running_app_info.version,64,0);invalidate();
+    //text_out("Start...",0,0);text_out(running_app_info.version,64,0);invalidate();
     const esp_partition_t *update_partition = esp_ota_get_next_update_partition(NULL);
     assert(update_partition != NULL);
     ESP_LOGI(TAG, "Writing to partition subtype %d at offset 0x%x",
@@ -1531,8 +1540,8 @@ void app_main(void)
     
     esp_netif_t *netif = NULL;
     char buff[128]={0};
-    clr_disp();
-    text_out("run...ver:",0,0);text_out(running_app_info.version,80,0);invalidate();
+    //clr_disp();
+    //text_out("run...ver:",0,0);text_out(running_app_info.version,80,0);invalidate();
     int i=0;
     while ((netif = esp_netif_next(netif)) != NULL)
     {
@@ -1547,7 +1556,7 @@ void app_main(void)
             printf("ERROR,ret=%d,%s\n", ret, esp_netif_get_desc(netif));
         */
        sprintf(buff,"%s IP:" IPSTR, esp_netif_get_desc(netif), IP2STR(&ip_info.ip));
-       text_out(buff,0,16+i*16);invalidate();
+       //(buff,0,16+i*16);invalidate();
        i++;
     }
     for(i=0;i<sizeof(buff);i++)
@@ -1555,10 +1564,11 @@ void app_main(void)
         buff[i]=0;
     }
     sprintf(buff,"AP SSID:%s,密码:%s",EXAMPLE_ESP_WIFIAP_SSID,EXAMPLE_ESP_WIFIAP_PASS);
-    text_out(buff,0,48);invalidate();
+    //text_out(buff,0,48);invalidate();
 
     //xTaskCreate(send_to_all, "send_to_all", 4096, NULL, 5, NULL);
     xTaskCreatePinnedToCore(send_to_all, "send_to_all", 4096, NULL, 5, NULL,1);
+    xTaskCreatePinnedToCore(gpio_input_test, "gpio_input_test", 4096, NULL, 5, NULL,1);
     //size_t exram_size=esp_spiram_get_size();
     //volatile int *p = (volatile int *)(SOC_EXTRAM_DATA_HIGH - exram_size);
     
