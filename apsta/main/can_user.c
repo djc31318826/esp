@@ -77,6 +77,7 @@ void twai_receive_task(void *arg)
             //printf("Recieved message0\n");
             //twai_message_t rx_can_message_t;
             //ret=twai_receive(&rx_can_message,pdMS_TO_TICKS(500));
+            rx_can_message.data_length_code=0;
             ret=twai_receive(&rx_can_message,pdMS_TO_TICKS(500));
             //printf("Recieved message1\n");
             //将接收到的消息发送到网络
@@ -371,7 +372,7 @@ void parse_can_message(uint8_t *arg,int len)
         return ;
     }
     StructCanMessage xSend;
-    if(arg[0]==0)
+    if(arg[0]==0&&arg[1]==0)
     {
         //设置命令
 /*
@@ -384,7 +385,7 @@ void parse_can_message(uint8_t *arg,int len)
 #define TWAI_TIMING_CONFIG_800KBITS()   {.brp = 4, .tseg_1 = 16, .tseg_2 = 8, .sjw = 3, .triple_sampling = false}
 #define TWAI_TIMING_CONFIG_1MBITS()     {.brp = 4, .tseg_1 = 15, .tseg_2 = 4, .sjw = 3, .triple_sampling = false}
 */
-        if(arg[1]==0)
+        if(arg[2]==0)
         {
             t_config.brp           =128;
             t_config.tseg_1        =16;
@@ -393,7 +394,7 @@ void parse_can_message(uint8_t *arg,int len)
             t_config.triple_sampling=false;
 
         }
-        if(arg[1]==1)
+        if(arg[2]==1)
         {
             t_config.brp           =80;
             t_config.tseg_1        =15;
@@ -402,7 +403,7 @@ void parse_can_message(uint8_t *arg,int len)
             t_config.triple_sampling=false;
 
         }
-        if(arg[1]==2)
+        if(arg[2]==2)
         {
             t_config.brp           =40;
             t_config.tseg_1        =15;
@@ -411,7 +412,7 @@ void parse_can_message(uint8_t *arg,int len)
             t_config.triple_sampling=false;
 
         }
-        if(arg[1]==3)
+        if(arg[2]==3)
         {
             t_config.brp           =32;
             t_config.tseg_1        =15;
@@ -420,7 +421,7 @@ void parse_can_message(uint8_t *arg,int len)
             t_config.triple_sampling=false;
 
         }
-        if(arg[1]==4)
+        if(arg[2]==4)
         {
             t_config.brp           =16;
             t_config.tseg_1        =15;
@@ -429,7 +430,7 @@ void parse_can_message(uint8_t *arg,int len)
             t_config.triple_sampling=false;
 
         }
-        if(arg[1]==5)
+        if(arg[2]==5)
         {
             t_config.brp           =8;
             t_config.tseg_1        =15;
@@ -438,7 +439,7 @@ void parse_can_message(uint8_t *arg,int len)
             t_config.triple_sampling=false;
 
         }
-        if(arg[1]==6)
+        if(arg[2]==6)
         {
             t_config.brp           =4;
             t_config.tseg_1        =16;
@@ -447,7 +448,7 @@ void parse_can_message(uint8_t *arg,int len)
             t_config.triple_sampling=false;
 
         }
-        if(arg[1]==7)
+        if(arg[2]==7)
         {
             t_config.brp           =4;
             t_config.tseg_1        =15;
@@ -462,7 +463,7 @@ void parse_can_message(uint8_t *arg,int len)
         xQueueSend(xCanQueue,&xSend,portMAX_DELAY);
         printf("Send Queue,CAN_START Over\n");
     }
-    if(arg[0]==1)
+    if(arg[0]==0&&arg[1]==1)
     {
         
 //    typedef struct {
@@ -485,20 +486,21 @@ void parse_can_message(uint8_t *arg,int len)
 //} twai_message_t;*/
         //uint32_t extd;
          
-        tx_can_message.extd=arg[1];
-        tx_can_message.rtr =arg[2];
+        tx_can_message.extd=arg[2];
+        tx_can_message.rtr =arg[3];
         for(int i=0;i<len;i++)
         {
             printf("arg[%d]=%2.2x\n",i,arg[i]);
         }
         //tx_can_message.ss=1;
-        for(int i=0;i<len-3;i=i+1)
+
+        for(int i=0;i<len-8;i=i+1)
         {
-            tx_can_message.data[i]=arg[i+3];
+            tx_can_message.data[i]=arg[i+8];
             //printf("data[%d]=%2.2x\n",i,arg[i+3]);
         }    
-        tx_can_message.identifier=0x678;
-        tx_can_message.data_length_code=len-3;
+        tx_can_message.identifier=arg[4]+(arg[5]<<8)+(arg[6]<<16)+(arg[7]<<24);
+        tx_can_message.data_length_code=len-8;
         xSend.message_type=START_SEND_ONCE;
         xQueueSend(xCanQueueSend,&xSend,portMAX_DELAY);
         //tx_can_message={.identifier = 2, .data_length_code = 8,

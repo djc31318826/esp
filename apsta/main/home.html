@@ -12,7 +12,7 @@
 </head>
 
 <body>
-    <h1>AP和STA信息</h1>
+    <h3>AP和STA信息</h3>
     <!--<table style="background-color:lightgray">
         <tr>
             <td align="right">
@@ -31,7 +31,7 @@
         </p>
     </table>-->
     <p><textarea id="ap_sta_info" name="ap_sta_info" rows="10" cols="100" readonly="true"></textarea></p>
-    <h1>STA WIFI设置</h1>
+    <h3>STA WIFI设置</h3>
     <table>
         <tr>
             <td align="right">
@@ -73,7 +73,7 @@
     <label for="range_b">藍色</label><input type="range" id="range_b" min="0" max="255" value="0"
         onchange="get_range()"></input><label  id="b_value">0</label><br>
     <hr>
-    <h1>OTA</h1>
+    <h3>OTA</h3>
     <br>
     <input type="file" id="sel_file" onchange="set_path()"></input>
     <!--<input type="text" id="file_path"></input>-->
@@ -81,7 +81,7 @@
     <br>
     <input type="button" id="btn_upload" onclick="do_upload()" value="OTA更新"></input>
     <input type="range" id="progess_upload" min="0" max="100" value="0"></input><label id="progess_upload_label">0%</label>
-    <h1>STA状态</h1>
+    <h3>STA状态</h3>
     <br>
     <h3>CAN控制</h3>
     <label>波特率设置</label>
@@ -95,6 +95,8 @@
             <option value="28">800Kbps</option>
             <option selected value="40">1Mbps</option>
     </select>
+    <label>&nbsp&nbsp&nbspCAN ID设置(十六进制)</label>
+    <input type="text" id="can_id" value="0678"></input>
     <br>
     <table>
     <tr><td><label>帧格式选择</label></td><td><input name="can_style_sel" type="radio" value="std_frame" id="id_radio_std_frame" checked></input><label>标准帧    </label></td><td><input name="can_style_sel" type="radio" value="ext_frame" id="id_radio_ext_frame"></input><label>扩展帧</label></td>
@@ -108,6 +110,7 @@
 
     <br>
     <button id="can_sel_button" onclick="can_sel_button_clicked()">确定</button>
+    <button id="send_button" onclick="can_send_button_clicked()">发送</button>
     <br>
     <div id="id_div_can_content">
         <table border="1">
@@ -139,32 +142,34 @@
             </tr>    
             <tr>
                 <td>
-                    <textarea name="send_text" id="0">88</textarea>
+                    <input type="text" name="send_text" id="0" value="88"></input>
                 </td>
                 <td>
-                    <textarea name="send_text" id="1">88</textarea>
+                    <input type="text" name="send_text" id="1" value="88"></input>
                 </td>
                 <td>
-                    <textarea name="send_text" id="2">88</textarea>
+                    <input type="text" name="send_text" id="2" value="88"></input>
                 </td>
                 <td>
-                    <textarea name="send_text" id="3">88</textarea>
+                    <input type="text" name="send_text" id="3" value="88"></input>
                 </td>
                 <td>
-                    <textarea name="send_text" id="4">88</textarea>
+                    <input type="text" name="send_text" id="4" value="88"></input>
                 </td>
                 <td>
-                    <textarea name="send_text" id="5">88</textarea>
+                    <input type="text" name="send_text" id="5" value="88"></input>
                 </td>
                 <td>
-                    <textarea name="send_text" id="6">88</textarea>
+                    <input type="text" name="send_text" id="6" value="88"></input>
                 </td>
                 <td>
-                    <textarea name="send_text" id="7">88</textarea>
+                    <input type="text" name="send_text" id="7" value="88"></input>
                 </td>
             </tr>
         </table>
-        <button id="send_button" onclick="can_send_button_clicked()">发送</button>
+    <br>
+    <label>CAN接收数据</label><br>
+    <textarea id="can_rec_disp" rows="10" cols="100" readonly="true"></textarea>
     </div>
     <script>
         var v;
@@ -178,9 +183,9 @@
         function do_upload()
         {
             var filepath=document.getElementById("sel_file").files;
-            var input_text=prompt("输入密码","*****");
-            if(input_text!="admin123")
-                return;
+            //var input_text=prompt("输入密码","*****");
+            //if(input_text!="admin123")
+            //    return;
             console.log(filepath[0]);
             console.log(filepath[0].size);
             var reader=new FileReader()
@@ -313,6 +318,7 @@
         {
 
         }
+        let frame_cnt=0;
         function onmessage2(event) {
             console.log("on message2");
             console.log(event.data);
@@ -320,12 +326,66 @@
             console.log(t);
             abuf=t.arrayBuffer();
             console.log(abuf);
+            let disp="";
             abuf.then(function(array)
             {
                 console.log(array);
                 let dbuf= new DataView(array);
+                //00-01
+                len1=dbuf.byteLength;
+                console.log(len1);
+                for(i=0;i<len1;i++)
+                {
+                    console.log(dbuf.getUint8(i));
+                }
+                //00-01 header 表示can报文消息
+                ext="";
+                r_frame="";
+                id="";
+                if(len1>2)
+                {
+                    if(dbuf.getUint8(0)==0&&dbuf.getUint8(1)==1)
+                    {
+                        //扩展帧标识，数据帧or远程帧，id-先传的是LSB，然后是数据
+                        frame_cnt++;
+                        if(len1>=8)
+                        {
+                            ext=dbuf.getUint8(2);
+                            r_frame=dbuf.getUint8(3);
+                            id=dbuf.getUint8(4)+(dbuf.getUint8(5)<<8)+(dbuf.getUint8(6)<<16)+(dbuf.getUint8(6)<<24);
+                        }
+                        content="";
+                        if(len1>8)
+                        {
+                            for(i=0;i<len1-8;i++)
+                            {
+                                content+=dbuf.getUint8(8+i).toString(16);
+                                if(i!=len1-9)
+                                content+="-";
+                            }
+                        }
+                        console.log(content);
+                        line1="报文计数："+frame_cnt.toString()+(ext==1?" 扩展帧":" 标准帧")+(r_frame==1?" 远程帧":" 数据帧")+" ID:0x"+id.toString(16);
+                        if(len1>8)
+                        {
+                            line1+=" 字节数:"+(len1-8).toString();
+                        }
+                        else
+                        {
+                            line1+=" 字节数:"+"0";
+                        }
+                        line1+="\n";
+                        console.log(line1);
+                        console.log(content);
+                        document.getElementById("can_rec_disp").innerHTML=document.getElementById("can_rec_disp").innerHTML+line1;
+                        document.getElementById("can_rec_disp").innerHTML=document.getElementById("can_rec_disp").innerHTML+content+"\n";
+                        textarea1=document.getElementById("can_rec_disp");
+                        textarea1.scroll({ top: textarea1.scrollHeight, left: 0, behavior: "smooth" });
+                    }
+                }
             }
             )
+            can_disp=document.getElementById("can_rec_disp");
         }
 
         function set_func() {
@@ -600,10 +660,11 @@
             index = x.selectedIndex;
             
             //命令1：设置帧格式，数据格式和波特率 00-波特率-帧格式-数据格式 共4个byte
-            let data1=new ArrayBuffer(2);
+            let data1=new ArrayBuffer(3);
             let vdata1=new DataView(data1);
             vdata1.setUint8(0,0);
-            vdata1.setUint8(1,index);
+            vdata1.setUint8(1,0);
+            vdata1.setUint8(2,index);
 
             socket2.send(vdata1.buffer);
             console.log(data1);
@@ -643,6 +704,7 @@
                 }
             }
             console.log(x);
+            id_t=document.getElementById("can_id").value;
 
             for(i=0;i<send_data.length;i=i+1)
             {
@@ -651,20 +713,32 @@
                 data_len++;    
                 console.log(send_data[i].value);
             }
-            let data_buf=new ArrayBuffer(data_len+3);
+            let data_buf=new ArrayBuffer(data_len+8);
             let vdata_buf=new DataView(data_buf);
-            vdata_buf.setUint8(0,1);
+            vdata_buf.setUint8(0,0);
+            vdata_buf.setUint8(1,1);
             vdata_buf.setUint8(2,frame_style);
             vdata_buf.setUint8(3,data_style );
+            //id
+            id_v=parseInt(id_t,16);
+            vdata_buf.setUint8(4,id_v&0xff );
+            vdata_buf.setUint8(5,(id_v>>8)&0xff );
+            vdata_buf.setUint8(6,(id_v>>16)&0xff );
+            vdata_buf.setUint8(7,(id_v>>24)&0xff );
+
             for(i=0;i<data_len;i=i+1)
             {
-                tdata=parseInt(send_data[i].value,16);
-                vdata_buf.setUint8(i+3,tdata);
+                array_index=parseInt(send_data[i].id);
+                tdata=parseInt(send_data[array_index].value,16);
+                
+                if(array_index<data_len)
+                    vdata_buf.setUint8(array_index+8,tdata);
             }
             console.log(vdata_buf);
 
             //命令2：设置帧格式，数据格式和波特率 01-根据数据的长度决定的
-            socket2.send(vdata_buf.buffer);
+            if(socket2.readyState == WebSocket.OPEN)
+                socket2.send(vdata_buf.buffer);
         }
     </script>
 </body>
