@@ -50,3 +50,6 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+apsta/build/
+apsta/dependencies.lock
+apsta/main/gpio_misc copy 2.c

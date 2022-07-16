@@ -82,6 +82,90 @@
     <input type="button" id="btn_upload" onclick="do_upload()" value="OTA更新"></input>
     <input type="range" id="progess_upload" min="0" max="100" value="0"></input><label id="progess_upload_label">0%</label>
     <h1>STA状态</h1>
+    <br>
+    <h3>CAN控制</h3>
+    <label>波特率设置</label>
+    <select id="can_sel">
+            <option value="1">25Kbps</option>
+            <option value="2">50Kbps</option>
+            <option value="4">100Kbps</option>
+            <option value="5">125Kbps</option>
+            <option value="10">250Kbps</option>
+            <option value="20">500Kbps</option>
+            <option value="28">800Kbps</option>
+            <option selected value="40">1Mbps</option>
+    </select>
+    <br>
+    <table>
+    <tr><td><label>帧格式选择</label></td><td><input name="can_style_sel" type="radio" value="std_frame" id="id_radio_std_frame" checked></input><label>标准帧    </label></td><td><input name="can_style_sel" type="radio" value="ext_frame" id="id_radio_ext_frame"></input><label>扩展帧</label></td>
+    </td>
+    </tr>
+    <br>
+    <tr>
+    <td><label>数据格式选择</label></td><td><input name="frame_style_sel" type="radio" value="data_frame" id="id_radio_std_frame" checked><label>数据帧    </td><td></label></input><input name="frame_style_sel" type="radio" value="remote_frame" id="id_radio_ext_frame"></input><label>远程帧</label></td>
+    </tr>
+    </table>
+
+    <br>
+    <button id="can_sel_button" onclick="can_sel_button_clicked()">确定</button>
+    <br>
+    <div id="id_div_can_content">
+        <table border="1">
+            <tr>
+            <th>
+                DATA0
+            </th>    
+            <th>
+                DATA1
+            </th>    
+            <th>
+                DATA2
+            </th>    
+            <th>
+                DATA3
+            </th>    
+            <th>
+                DATA4
+            </th>    
+            <th>
+                DATA5
+            </th>    
+            <th>
+                DATA6
+            </th>    
+            <th>
+                DATA7
+            </th>      
+            </tr>    
+            <tr>
+                <td>
+                    <textarea name="send_text" id="0">88</textarea>
+                </td>
+                <td>
+                    <textarea name="send_text" id="1">88</textarea>
+                </td>
+                <td>
+                    <textarea name="send_text" id="2">88</textarea>
+                </td>
+                <td>
+                    <textarea name="send_text" id="3">88</textarea>
+                </td>
+                <td>
+                    <textarea name="send_text" id="4">88</textarea>
+                </td>
+                <td>
+                    <textarea name="send_text" id="5">88</textarea>
+                </td>
+                <td>
+                    <textarea name="send_text" id="6">88</textarea>
+                </td>
+                <td>
+                    <textarea name="send_text" id="7">88</textarea>
+                </td>
+            </tr>
+        </table>
+        <button id="send_button" onclick="can_send_button_clicked()">发送</button>
+    </div>
     <script>
         var v;
         const LEN_PER=32*1024
@@ -132,7 +216,6 @@
                 //socket1.binaryType="arraybuffer";
                 socket1.onopen=s_open
                 socket1.onmessage=onmessage1;
-
             }
         }
 
@@ -224,7 +307,25 @@
             send_ptr=send_ptr+LEN_PER;
             document.getElementById("progess_upload").value=Math.round(send_ptr/v.byteLength*100)>100?100:Math.round(send_ptr/v.byteLength*100);
             document.getElementById("progess_upload_label").innerHTML=Math.round(send_ptr/v.byteLength*100)>100?100:Math.round(send_ptr/v.byteLength*100)+"%"
+            //console.log(event.data);
+        }
+        function s_open2()
+        {
+
+        }
+        function onmessage2(event) {
+            console.log("on message2");
             console.log(event.data);
+            var t=event.data;
+            console.log(t);
+            abuf=t.arrayBuffer();
+            console.log(abuf);
+            abuf.then(function(array)
+            {
+                console.log(array);
+                let dbuf= new DataView(array);
+            }
+            )
         }
 
         function set_func() {
@@ -305,6 +406,27 @@
             get_range();
             //socket.onclose=onClose1;
             //getData();
+
+            url=document.location.toString();
+            //http://a.djc001.top:8000/
+            s_start=url.substr(0,5);
+            if(s_start=="http:")
+            {
+                url=url.substr(5);
+                console.log(url);
+            }
+
+            if(url.charAt(url.length-1)=="/")
+                url="ws:"+url+"ws2";
+            else
+                url="ws:"+url+"/ws2";
+                
+                
+            socket2 = new WebSocket(url);
+            //socket1.binaryType="arraybuffer";
+            socket2.onopen=s_open2
+            socket2.onmessage=onmessage2;    
+            console.log(socket2);
         }
         var socket;
         function ws_func() {
@@ -390,6 +512,7 @@
             document.getElementById("range_b").value = t.b;
             get_range();
         }
+        /* 2022-07-11 修改，改为二进制接收
         function onMessage(event) {
             //console.log("on message");
             //console.log(event.data);
@@ -412,6 +535,136 @@
                 document.getElementById("b_value").innerHTML=tt[2];
                 //get_range();
             }
+        }
+        */
+        function onMessage(event) {
+            //console.log("on message");
+            //console.log(event.data);
+            cnt++;
+            //document.getElementById("cnt_pkt").innerHTML="收到的包数为："+cnt;
+            //document.getElementById("cnt_pkt").innerHTML = event.data;
+           
+            var t=event.data;
+            console.log(t);
+            abuf=t.arrayBuffer();
+            console.log(abuf);
+            abuf.then(function(array)
+            {
+                console.log(array);
+                let dbuf= new DataView(array);
+                for(i=0; i<array.byteLength; i++)
+                {    
+                    dbuf.getUint8(i);
+                    console.log(i,dbuf.getUint8(i).toString(16));
+                }
+                if(array.byteLength>=5)
+                {
+                    if(dbuf.getUint8(0)==0&&dbuf.getUint8(1)==0)
+                    {
+                        console.log("Received RGB message");
+                        document.getElementById("range_r").value = dbuf.getUint8(2).toString();
+                        document.getElementById("range_g").value = dbuf.getUint8(3).toString();
+                        document.getElementById("range_b").value = dbuf.getUint8(4).toString();
+                        document.getElementById("color_pan").value = ConvertRGBtoHex(dbuf.getUint8(2), dbuf.getUint8(3), dbuf.getUint8(4));
+                        document.getElementById("r_value").innerHTML=dbuf.getUint8(2).toString();
+                        document.getElementById("g_value").innerHTML=dbuf.getUint8(3).toString();
+                        document.getElementById("b_value").innerHTML=dbuf.getUint8(4).toString();
+                        document.getElementById("cnt_pkt").innerHTML = dbuf.getUint8(2).toString()+" "+dbuf.getUint8(3).toString()+" "+dbuf.getUint8(4).toString();
+                    }
+                }
+            }
+            )
+            /*
+            var tt=t.split(" ");
+            console.log(tt.length+" "+tt);
+            if(tt.length==3)
+            {
+                document.getElementById("range_r").value = tt[0];
+                document.getElementById("range_g").value = tt[1];
+                document.getElementById("range_b").value = tt[2];
+                document.getElementById("color_pan").value = ConvertRGBtoHex(parseInt(tt[0]), parseInt(tt[1]), parseInt(tt[2]));
+                document.getElementById("r_value").innerHTML=tt[0];
+                document.getElementById("g_value").innerHTML=tt[1];
+                document.getElementById("b_value").innerHTML=tt[2];
+                //get_range();
+            }
+            */
+        }
+        function can_sel_button_clicked()
+        {
+            //document.getElementById("id_div_can_content").innerHTML="<br><button >test</button>";
+            console.log("CAN Sel Button clicked");
+            //发送设置帧格式、数据格式和波特率的命令
+            var x=document.getElementById("can_sel");
+            console.log(x.selectedIndex);
+            index = x.selectedIndex;
+            
+            //命令1：设置帧格式，数据格式和波特率 00-波特率-帧格式-数据格式 共4个byte
+            let data1=new ArrayBuffer(2);
+            let vdata1=new DataView(data1);
+            vdata1.setUint8(0,0);
+            vdata1.setUint8(1,index);
+
+            socket2.send(vdata1.buffer);
+            console.log(data1);
+            console.log("can_sel_button_clicked");
+        }
+        function can_send_button_clicked()
+        {
+            //document.getElementById("id_div_can_content").innerHTML="<br><button >test</button>";
+            var send_data=document.getElementsByName("send_text");
+            data_len=0;
+
+            x=document.getElementsByName("can_style_sel");
+            frame_style=0;
+            data_style =0;
+            for(f of x)
+            {
+                if(f.checked==true)
+                {
+                    console.log(f.value);
+                    if(f.value=="std_frame")
+                        frame_style=0;
+                    else
+                        frame_style=1;
+                }
+            }
+            console.log(x);
+            x=document.getElementsByName("frame_style_sel");
+            for(f of x)
+            {
+                if(f.checked==true)
+                {
+                    console.log(f.value);
+                    if(f.value=="data_frame")
+                        data_style=0;
+                    else
+                        data_style=1;
+                }
+            }
+            console.log(x);
+
+            for(i=0;i<send_data.length;i=i+1)
+            {
+                if(send_data[i].value=="")
+                    break;
+                data_len++;    
+                console.log(send_data[i].value);
+            }
+            let data_buf=new ArrayBuffer(data_len+3);
+            let vdata_buf=new DataView(data_buf);
+            vdata_buf.setUint8(0,1);
+            vdata_buf.setUint8(2,frame_style);
+            vdata_buf.setUint8(3,data_style );
+            for(i=0;i<data_len;i=i+1)
+            {
+                tdata=parseInt(send_data[i].value,16);
+                vdata_buf.setUint8(i+3,tdata);
+            }
+            console.log(vdata_buf);
+
+            //命令2：设置帧格式，数据格式和波特率 01-根据数据的长度决定的
+            socket2.send(vdata_buf.buffer);
         }
     </script>
 </body>

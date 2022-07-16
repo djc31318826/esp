@@ -179,6 +179,13 @@ CONFIG_LCD_TYPE_AUTO=y
 # end of OLED Configuration
 
 #
+# Example Configuration
+#
+CONFIG_EXAMPLE_TX_GPIO_NUM=6
+CONFIG_EXAMPLE_RX_GPIO_NUM=7
+# end of Example Configuration
+
+#
 # Compiler options
 #
 CONFIG_COMPILER_OPTIMIZATION_DEFAULT=y

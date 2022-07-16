@@ -22,12 +22,10 @@
 #include <sys/param.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
-#include "esp_netif.h"
 #include "esp_vfs.h"
 #include "esp_http_server.h"
 #include "esp_ota_ops.h"
@@ -45,6 +43,8 @@
 //#include "oled.h"
 #include "gpio_misc.h"
 #include "lvgl_lcd240x240.h"
+#include "can_user.h"
+#include "global_var.h"
 //#include "draw_func.h"
 
 /* The examples use WiFi configuration that you can set via project configuration menu
@@ -60,7 +60,7 @@
 #define EXAMPLE_ESP_WIFIAP_PASS CONFIG_ESP_WIFIAP_PASSWORD
 #define EXAMPLE_ESP_WIFIAP_CHANNEL CONFIG_ESP_WIFIAP_CHANNEL
 #define EXAMPLE_MAX_STA_CONN CONFIG_ESP_MAX_STA_CONN
-#define MAX_CLIENTS 7
+//#define MAX_CLIENTS 7
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
 
@@ -73,7 +73,7 @@ static EventGroupHandle_t s_wifi_event_group;
 static const char *TAG = "wifi station";
 int r = 0, g = 0, b = 0;
 static int s_retry_num = 0;
-httpd_handle_t handle = NULL;
+//httpd_handle_t handle = NULL;
 
 /* Function to initialize SPIFFS */
 
@@ -776,10 +776,13 @@ struct async_resp_arg
     int fd;
 };
 
+
+
 /*
  * async send function, which we put into the httpd work queue
  */
 int gcnt = 0;
+/*
 static void ws_async_send(void *arg)
 {
     // static const char * data = "Async data";
@@ -798,6 +801,41 @@ static void ws_async_send(void *arg)
 
     httpd_ws_send_frame_async(hd, fd, &ws_pkt);
     free(resp_arg);
+}
+*/
+
+static void ws_async_send_rgb(void *arg)
+{
+    // static const char * data = "Async data";
+    //
+    // static int i=0;
+    char buf[32] = {0};
+    //sprintf(buf, "%d %d %d", r, g, b);
+    buf[2]=r;
+    buf[3]=g;
+    buf[4]=b;
+    
+    struct async_resp_arg *resp_arg = arg;
+    httpd_handle_t hd = resp_arg->hd;
+    int fd = resp_arg->fd;
+    httpd_ws_frame_t ws_pkt;
+    memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+    ws_pkt.payload = (uint8_t *)buf; //(uint8_t*)data;
+    ws_pkt.len = 5;        // strlen(data);
+    ws_pkt.type = HTTPD_WS_TYPE_BINARY;
+
+    httpd_ws_send_frame_async(hd, fd, &ws_pkt);
+    free(resp_arg);
+}
+
+
+
+static void ws_async_parse(void *arg)
+{
+    parse_resp_arg *p;
+    p=(parse_resp_arg *)arg;
+    parse_can_message(p->buf,p->len);
+    free(p);
 }
 
 static void ws_async_send1(void *arg)
@@ -819,7 +857,7 @@ static void ws_async_send1(void *arg)
     free(resp_arg);
     printf("In ws_async_send1\n");
 }
-
+/*
 static esp_err_t trigger_async_send(httpd_handle_t handle, httpd_req_t *req)
 {
     struct async_resp_arg *resp_arg = malloc(sizeof(struct async_resp_arg));
@@ -827,13 +865,13 @@ static esp_err_t trigger_async_send(httpd_handle_t handle, httpd_req_t *req)
     resp_arg->fd = httpd_req_to_sockfd(req);
     return httpd_queue_work(handle, ws_async_send, resp_arg);
 }
-
+*/
 /*
  * This handler echos back the received ws data
  * and triggers an async send if certain message received
  */
 // Get all clients and send async message
-static void wss_server_send_messages(httpd_handle_t *server)
+static void wss_server_send_messages(httpd_handle_t *server,int send_mode)//send_mode 0:发送rgb值，1:发送CAN的消息；
 {
     bool send_messages = true;
 
@@ -859,7 +897,8 @@ static void wss_server_send_messages(httpd_handle_t *server)
                 struct async_resp_arg *resp_arg = malloc(sizeof(struct async_resp_arg));
                 resp_arg->hd = *server;
                 resp_arg->fd = sock;
-                httpd_queue_work(handle, ws_async_send, resp_arg);
+                if(send_mode==0)
+                    httpd_queue_work(handle, /*ws_async_send*/ws_async_send_rgb, resp_arg);
                 // ws_async_send(resp_arg);
                 // if (httpd_queue_work(resp_arg->hd, send_hello, resp_arg) != ESP_OK) {
                 //     ESP_LOGE(TAG, "httpd_queue_work failed!");
@@ -918,19 +957,19 @@ static esp_err_t echo_handler(httpd_req_t *req)
         ESP_LOGI(TAG, "Got packet with message: %s", ws_pkt.payload);
     }
     ESP_LOGI(TAG, "Packet type: %d", ws_pkt.type);
-    if (strncmp((char *)ws_pkt.payload, "1234", strlen("1234")) != 0)
+    if (strncmp((char *)ws_pkt.payload, "1234", strlen("1234")) != 0)//客户端给服务器端发送1234时，只更新这个客户端的值，此条件是更新所有的客户端值
     {
         sscanf((char *)ws_pkt.payload, "%d %d %d", &r, &g, &b);
         printf("r=%d,g=%d,b=%d\n", r, g, b);
         rgb_led_set(r, g, b);
-        wss_server_send_messages(&handle);
+        wss_server_send_messages(&handle,0);
     }
     else
     {
         struct async_resp_arg *resp_arg = malloc(sizeof(struct async_resp_arg));
         resp_arg->hd = handle;
         resp_arg->fd = httpd_req_to_sockfd(req);
-        httpd_queue_work(handle, ws_async_send, resp_arg);
+        httpd_queue_work(handle, /*ws_async_send*/ws_async_send_rgb, resp_arg);
     }
     /*
     if (ws_pkt.type == HTTPD_WS_TYPE_TEXT &&
@@ -1419,11 +1458,86 @@ static esp_err_t ota_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t can_handler(httpd_req_t *req)
+{
+    printf("######################11\n");
+    if (req->method == HTTP_GET)
+    {
+        ESP_LOGI(TAG, "Handshake done, the new connection was opened");
+        return ESP_OK;
+    }
+    printf("######################22\n");
+    httpd_ws_frame_t ws_pkt;
+    uint8_t *buf = NULL;
+    
+    int data_read = 0;
+    esp_err_t err;
+    esp_err_t ret;
+    //////////////////////////////////////////////
+    //
+    memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+    ws_pkt.type = HTTPD_WS_TYPE_BINARY; //
+
+    ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "httpd_ws_recv_frame failed to get frame len with %d", ret);
+        return ret;
+    }
+    printf("frame len is %d\n", ws_pkt.len);
+    if (ws_pkt.len)
+    {
+        buf = calloc(1, ws_pkt.len + 1);
+        if (buf == NULL)
+        {
+            ESP_LOGE(TAG, "Failed to calloc memory for buf");
+            return ESP_ERR_NO_MEM;
+        }
+        else
+            printf("can=%4.4x\n", *buf);
+        ws_pkt.payload = buf;
+
+        ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
+        if (ret != ESP_OK)
+        {
+            ESP_LOGE(TAG, "httpd_ws_recv_frame failed with %d", ret);
+            free(buf);
+            return ret;
+        }
+        ESP_LOGI(TAG, "Got packet with message: %s", ws_pkt.payload);
+    }
+    ESP_LOGI(TAG, "Packet type: %d", ws_pkt.type);
+    if (buf != NULL)
+        printf("can buffer=%2.2x-%2.2x\n", buf[0], buf[1]);
+    //parse_can_message(buf,ws_pkt.len);    
+
+    parse_resp_arg *resp_arg = malloc(sizeof(parse_resp_arg));
+    memcpy(resp_arg->buf,buf,ws_pkt.len);
+    resp_arg->len=ws_pkt.len;
+    httpd_queue_work(handle, ws_async_parse, resp_arg);
+
+    // buf[0],buf[1] == 0x00,0x00;   
+    //if (buf[0] == 0 && buf[1] == 0)
+    //{
+
+    //}
+
+        /*
+        struct async_resp_arg *resp_arg = malloc(sizeof(struct async_resp_arg));
+        resp_arg->hd = handle;
+        resp_arg->fd = httpd_req_to_sockfd(req);
+        // httpd_queue_work(handle, ws_async_send, resp_arg);
+        /ws_async_send1(resp_arg);
+        //////////
+        */
+    return ESP_OK;
+}
 
 esp_err_t start_server()
 {
 
     httpd_config_t httpd_config_var = HTTPD_DEFAULT_CONFIG();
+    httpd_config_var.task_priority=10;
     httpd_config_var.max_open_sockets = MAX_CLIENTS;
     if (httpd_start(&handle, &httpd_config_var) != ESP_OK)
     {
@@ -1434,7 +1548,7 @@ esp_err_t start_server()
     {
         printf("Server Start Successed\n");
     }
-
+    printf("handle1=%p\n",handle);
     httpd_uri_t index = {
         .uri = "/",
         .method = HTTP_GET,
@@ -1477,6 +1591,15 @@ esp_err_t start_server()
         .is_websocket = true,
         .handle_ws_control_frames = true};
     httpd_register_uri_handler(handle, &ws1);
+
+    static const httpd_uri_t ws2 = {
+        .uri = "/ws2",
+        .method = HTTP_GET,
+        .handler = can_handler,
+        .user_ctx = NULL,
+        .is_websocket = true,
+        .handle_ws_control_frames = true};
+    httpd_register_uri_handler(handle, &ws2);
 
     return ESP_OK;
 }
@@ -1529,7 +1652,7 @@ void app_main(void)
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     wifi_init_sta();
 #ifdef CONFIG_EXAMPLE_IPV4
-    xTaskCreate(tcp_server_task, "tcp_server", 70000, (void *)AF_INET, 5, NULL);
+    xTaskCreate(tcp_server_task, "tcp_server", 70000, (void *)AF_INET, 20, NULL);
 #endif
 #ifdef CONFIG_EXAMPLE_IPV6
     xTaskCreate(tcp_server_task, "tcp_server", 40960, (void *)AF_INET6, 5, NULL);
@@ -1537,7 +1660,12 @@ void app_main(void)
     start_server();
     sys_delay_ms(10000);
     
-    
+    //void twai_receive_task(void *arg);
+    ///void twai_send_task(void *arg);
+    //void twai_routine(void *arg);
+    xTaskCreatePinnedToCore(twai_routine, "twai_routine",4096, NULL, 2, NULL,tskNO_AFFINITY);
+    xTaskCreatePinnedToCore(twai_send_task, "twai_send_task",4096, NULL, 1, NULL,tskNO_AFFINITY);
+    xTaskCreatePinnedToCore(twai_receive_task, "twai_receive_task",4096, NULL, 0, NULL,tskNO_AFFINITY);
     esp_netif_t *netif = NULL;
     char buff[128]={0};
     //clr_disp();
