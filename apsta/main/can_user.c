@@ -15,6 +15,8 @@ twai_message_t tx_can_message={.identifier = 2, .data_length_code = 8,
                                      .data = {0xaa, 0xff , 0 , 0 ,0 ,0 ,0 ,0}};
 twai_message_t rx_can_message={.identifier = 2, .data_length_code = 8,
                                      .data = {0xff, 0xaa , 0 , 0 ,0 ,0 ,0 ,0}};
+long rcv_cnt=0;
+long send_cnt=0;
 
 void init_can(int can_brp)
 {
@@ -78,9 +80,10 @@ void twai_receive_task(void *arg)
             //twai_message_t rx_can_message_t;
             //ret=twai_receive(&rx_can_message,pdMS_TO_TICKS(500));
             rx_can_message.data_length_code=0;
-            ret=twai_receive(&rx_can_message,pdMS_TO_TICKS(500));
+            ret=twai_receive(&rx_can_message,pdMS_TO_TICKS(10));
             //printf("Recieved message1\n");
             //将接收到的消息发送到网络
+            //2022-08-13需要循环读取，每次只读一包的话，很可能会导致报文累积
             if(ret==ESP_OK)
             {
             //    typedef struct {
@@ -102,8 +105,10 @@ void twai_receive_task(void *arg)
             //        uint8_t data[TWAI_FRAME_MAX_DLC];    /**< Data bytes (not relevant in RTR frame) */
             //} twai_message_t;
                 //extd,rtr,identifier(4 bytes),data[]--根据data_length_code
-                
-                printf("Recieved message %2.2x-%2.2x-%4.4x\n",rx_can_message.extd,rx_can_message.rtr,rx_can_message.identifier);
+                rcv_cnt++;
+#ifdef DEBUG                
+                printf("rcv_cnt=%ld,Recieved message %2.2x-%2.2x-0x%4.4x\n",rcv_cnt,rx_can_message.extd,rx_can_message.rtr,rx_can_message.identifier);
+#endif                
                 int  len=rx_can_message.data_length_code+8;
                 void *arg = malloc(len);
                 *((unsigned char *)arg+0)=0;
@@ -114,16 +119,32 @@ void twai_receive_task(void *arg)
                 *((unsigned char *)arg+5)=((rx_can_message.identifier>>8)&0xff);
                 *((unsigned char *)arg+6)=((rx_can_message.identifier>>16)&0xff);
                 *((unsigned char *)arg+7)=((rx_can_message.identifier>>24)&0xff);
+                
                 for(int i=0;i<rx_can_message.data_length_code;i=i+1)
                 {
                     *((unsigned char *)arg+8+i)=rx_can_message.data[i];
+#ifdef DEBUG                       
                     printf("rx_can_message.data[%d]=%2.2x\n",i,rx_can_message.data[i]);
+#endif
+                }
+                
+                twai_status_info_t status_info;
+#ifdef DEBUG    
+                if(twai_get_status_info(&status_info)==ESP_OK)
+                {
+                   
+                    printf("c twai_get_status_info(msg_tx,tx_failed_cnt,tx_err_cnt,bus_err_cnt,state,rx_missed_count,rx_overrun_count,msgs_to_rx) %d,%d,%d,%d,%d,%d,%d,%d\n",
+             
+                    status_info.msgs_to_tx,status_info.tx_failed_count,status_info.tx_error_counter,status_info.bus_error_count,status_info.state,status_info.rx_missed_count,status_info.rx_overrun_count,status_info.msgs_to_rx);
+                    ESP_LOGI("wifi", "free Heap:%d,%d", esp_get_free_heap_size(), heap_caps_get_free_size(MALLOC_CAP_8BIT));
                 }
                 printf("\n");
+#endif  
                 //printf("arg=%p\n",arg);
                 wss_server_can_send_messages(&handle,arg,len);
+                //free(arg);
                 //printf("handle=%p\n",handle);
-                
+                //ret=twai_receive(&rx_can_message,pdMS_TO_TICKS(1));
             }
         }
     }
@@ -147,7 +168,9 @@ void ws_async_send_can(void *arg)
     httpd_handle_t hd = resp_arg->hd;
     int fd = resp_arg->fd;
     httpd_ws_frame_t ws_pkt;
+#ifdef DEBUG        
     printf("ws_async_send_can\n");
+#endif    
     memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
     ws_pkt.payload = (uint8_t *)resp_arg->ptr; //(uint8_t*)data;
     ws_pkt.len = resp_arg->len;        // strlen(data);
@@ -156,7 +179,9 @@ void ws_async_send_can(void *arg)
     httpd_ws_send_frame_async(hd, fd, &ws_pkt);
     free(resp_arg->ptr);
     free(resp_arg);
+#ifdef DEBUG    
     printf("ws_async_send_can_end\n");
+#endif
 }
 
 
@@ -175,34 +200,46 @@ void wss_server_can_send_messages(httpd_handle_t *server,void * arg, int len)//s
     }
     size_t clients = MAX_CLIENTS;
     int client_fds[MAX_CLIENTS] = {0};
+#ifdef DEBUG        
     printf("wss_server_can_send_messages\n");
+#endif
     if (httpd_get_client_list(*server, &clients, client_fds) == ESP_OK)
     {
-        printf("0000\n");
+        //printf("0000\n");
         for (size_t i = 0; i < clients; ++i)
         {
+#ifdef DEBUG                
             printf("0-i=%d\n",i);
+#endif            
             int sock = client_fds[i];
             
             if (httpd_ws_get_fd_info(*server, sock) == HTTPD_WS_CLIENT_WEBSOCKET)
             {
                 //ESP_LOGI(TAG, "Active client (fd=%d) -> sending async message", sock);
+#ifdef DEBUG                    
                 printf("1-i=%d\n",i);
+#endif
                 struct async_can_arg *resp_arg = malloc(sizeof(struct async_can_arg));
                 resp_arg->hd = *server;
                 resp_arg->fd = sock;
                 resp_arg->ptr = malloc(len);
                 memcpy((void *)resp_arg->ptr,(void *)arg,len);
                 resp_arg->len = len;
+#ifdef DEBUG                    
                 printf("arg1=%p\n",resp_arg->ptr);
+#endif
+                //free(arg);
                 httpd_queue_work(handle, /*ws_async_send*/ws_async_send_can, resp_arg);
             }
         }
+        free(arg);
     }
     else
     {
         //ESP_LOGE(TAG, "httpd_get_client_list failed!");
+#ifdef DEBUG            
         printf("return\n");
+#endif        
         return;
     }
     //}
@@ -249,22 +286,32 @@ void twai_send_task(void *arg)
                     //发送的代码处理
                     if(TokenQuence.message_type==START_SEND_ONCE)
                     {
+#ifdef DEBUG                            
                         printf("Can send message\n");
+
                         twai_status_info_t status_info;
+
                         if(twai_get_status_info(&status_info)==ESP_OK)
                         {
                             printf("b twai_get_status_info(msg_tx,tx_failed_cnt,tx_err_cnt,bus_err_cnt,state) %d,%d,%d,%d,%d\n",status_info.msgs_to_tx,status_info.tx_failed_count,status_info.tx_error_counter,status_info.bus_error_count,status_info.state);
                         }
+#endif
                         esp_err_t ret=twai_transmit(&tx_can_message,portMAX_DELAY);
+#ifdef DEBUG                        
                         if(ret!=ESP_OK)
                         {
                             printf("CAN Send Failed,ret=%d\n",ret);
                         }
+                        else{
+                            send_cnt++;
+                        }
+                    
                         if(twai_get_status_info(&status_info)==ESP_OK)
                         {
                             printf("a twai_get_status_info(msg_tx,tx_failed_cnt,tx_err_cnt,bus_err_cnt,state) %d,%d,%d,%d,%d\n",status_info.msgs_to_tx,status_info.tx_failed_count,status_info.tx_error_counter,status_info.bus_error_count,status_info.state);
                         }
-                        printf("Send Once Done\n");
+                        printf("send_cnt=%ld,Send Once Done\n",send_cnt);
+#endif
                     }
                 
                 }
@@ -293,6 +340,7 @@ void twai_routine(void *arg)
         xCanQueueSend=xQueueCreate(10,sizeof(StructCanMessage));
     }
     //while(1){vTaskDelay(pdMS_TO_TICKS(100));}
+    
     printf("twai_routine runing\n");
     while(1)
     {
@@ -311,6 +359,8 @@ void twai_routine(void *arg)
                 StructCanMessage xRecieve;
                 xSend.message_type   =STOP_SEND;
                 xRecieve.message_type=STOP_RECIEVE;
+                rcv_cnt=0;
+                send_cnt=0;
                 printf("Recieved Queue=%d\n",msg.message_type);
                 //continue;
                 //如果CAN已经启动了，需要暂停和卸载驱动
@@ -346,6 +396,7 @@ void twai_routine(void *arg)
                     //
                     printf("install can driver\n");
                     //以新的配置重新启动CAN总线
+                    g_config.rx_queue_len=256;
                     esp_err_t ret=twai_driver_install(&g_config,&t_config,&f_config);
                     printf("driver install ret=%d\n",ret);
                     ret=twai_start();
@@ -457,11 +508,14 @@ void parse_can_message(uint8_t *arg,int len)
             t_config.triple_sampling=false;
 
         }
-        
+#ifdef DEBUG        
         printf("Send Queue,CAN_START\n");
+#endif
         xSend.message_type=START_CAN;
         xQueueSend(xCanQueue,&xSend,portMAX_DELAY);
+#ifdef DEGUG        
         printf("Send Queue,CAN_START Over\n");
+#endif
     }
     if(arg[0]==0&&arg[1]==1)
     {
@@ -488,10 +542,12 @@ void parse_can_message(uint8_t *arg,int len)
          
         tx_can_message.extd=arg[2];
         tx_can_message.rtr =arg[3];
+#ifdef DEBUG        
         for(int i=0;i<len;i++)
         {
             printf("arg[%d]=%2.2x\n",i,arg[i]);
         }
+#endif        
         //tx_can_message.ss=1;
 
         for(int i=0;i<len-8;i=i+1)

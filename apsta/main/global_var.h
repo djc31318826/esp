@@ -10,4 +10,4 @@
 #include <lwip/netdb.h>
 
 extern httpd_handle_t handle;
-#define MAX_CLIENTS 7
+#define MAX_CLIENTS 13

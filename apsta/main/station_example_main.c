@@ -716,12 +716,12 @@ esp_err_t ap_sta_info_handler(httpd_req_t *req)
     // httpd_resp_set_hdr(req, "Location", "/index");
 
     // httpd_resp_sendstr(req, "File uploaded successfully");
-    //ç¬?ä¸€æ­¥èŽ·å–APçš„ä¿¡æ?
+    //ï¿½?ä¸€æ­¥èŽ·å–APçš„ä¿¡ï¿½?
 
     // httpd_resp_sendstr(req, "AP INFO:\nssid:");
     strcpy(buf, "AP INFO\nssid:");
     strcat(buf, EXAMPLE_ESP_WIFIAP_SSID);
-    strcat(buf, "\nÃÜÂë:");
+    strcat(buf, "\nï¿½ï¿½ï¿½ï¿½:");
     strcat(buf, EXAMPLE_ESP_WIFIAP_PASS);
     strcat(buf, "\nESP32 AP IP:");
 
@@ -871,7 +871,7 @@ static esp_err_t trigger_async_send(httpd_handle_t handle, httpd_req_t *req)
  * and triggers an async send if certain message received
  */
 // Get all clients and send async message
-static void wss_server_send_messages(httpd_handle_t *server,int send_mode)//send_mode 0:·¢ËÍrgbÖµ£¬1:·¢ËÍCANµÄÏûÏ¢£»
+static void wss_server_send_messages(httpd_handle_t *server,int send_mode)//send_mode 0:ï¿½ï¿½ï¿½ï¿½rgbÖµï¿½ï¿½1:ï¿½ï¿½ï¿½ï¿½CANï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½
 {
     bool send_messages = true;
 
@@ -957,7 +957,7 @@ static esp_err_t echo_handler(httpd_req_t *req)
         ESP_LOGI(TAG, "Got packet with message: %s", ws_pkt.payload);
     }
     ESP_LOGI(TAG, "Packet type: %d", ws_pkt.type);
-    if (strncmp((char *)ws_pkt.payload, "1234", strlen("1234")) != 0)//¿Í»§¶Ë¸ø·þÎñÆ÷¶Ë·¢ËÍ1234Ê±£¬Ö»¸üÐÂÕâ¸ö¿Í»§¶ËµÄÖµ£¬´ËÌõ¼þÊÇ¸üÐÂËùÓÐµÄ¿Í»§¶ËÖµ
+    if (strncmp((char *)ws_pkt.payload, "1234", strlen("1234")) != 0)//ï¿½Í»ï¿½ï¿½Ë¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë·ï¿½ï¿½ï¿½1234Ê±ï¿½ï¿½Ö»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í»ï¿½ï¿½Ëµï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÐµÄ¿Í»ï¿½ï¿½ï¿½Öµ
     {
         sscanf((char *)ws_pkt.payload, "%d %d %d", &r, &g, &b);
         printf("r=%d,g=%d,b=%d\n", r, g, b);
@@ -1046,7 +1046,7 @@ static esp_err_t ota_handler(httpd_req_t *req)
     int file_total_len=0;
 
     bool image_header_was_checked = false;
-    //é¦–å…ˆèŽ·å–ä¼ è¾“æ–‡ä»¶çš„å¤§å°ã€?
+    //é¦–å…ˆèŽ·å–ä¼ è¾“æ–‡ä»¶çš„å¤§å°ï¿½?
     memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
         ws_pkt.type = HTTPD_WS_TYPE_BINARY; //
 
@@ -1082,7 +1082,7 @@ static esp_err_t ota_handler(httpd_req_t *req)
         //return 0;
         file_total_len=buf[1]+buf[2]*256+buf[3];
 
-        //å‘é€æ•°æ?
+        //å‘é€æ•°ï¿½?
         struct async_resp_arg *resp_arg = malloc(sizeof(struct async_resp_arg));
         resp_arg->hd = handle;
         resp_arg->fd = httpd_req_to_sockfd(req);
@@ -1188,7 +1188,7 @@ static esp_err_t ota_handler(httpd_req_t *req)
             }
             binary_file_length += data_read;
             ESP_LOGD(TAG, "Written image length %d", binary_file_length);
-            //å‘é€æ•°æ?
+            //å‘é€æ•°ï¿½?
             struct async_resp_arg *resp_arg = malloc(sizeof(struct async_resp_arg));
             resp_arg->hd = handle;
             resp_arg->fd = httpd_req_to_sockfd(req);
@@ -1375,7 +1375,7 @@ static esp_err_t ota_handler(httpd_req_t *req)
 #endif
 
                 image_header_was_checked = true;
-                //text_out("                ",0,0);text_out("run...to ",0,0);text_out(new_app_info.version,72,0);//²»µ÷ÓÃinvalidate();¸ÃÃüÁî£¬·ñÔò»áºÍÈÎÎñÖÐµÄscroll_x³åÍ»
+                //text_out("                ",0,0);text_out("run...to ",0,0);text_out(new_app_info.version,72,0);//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½invalidate();ï¿½ï¿½ï¿½ï¿½ï¿½î£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ðµï¿½scroll_xï¿½ï¿½Í»
                 err = esp_ota_begin(update_partition, OTA_WITH_SEQUENTIAL_WRITES, &update_handle);
                 if (err != ESP_OK)
                 {
@@ -1403,7 +1403,7 @@ static esp_err_t ota_handler(httpd_req_t *req)
         }
         binary_file_length += data_read;
         ESP_LOGD(TAG, "Written image length %d", binary_file_length);
-        //å‘é€æ•°æ?
+        //å‘é€æ•°ï¿½?
         struct async_resp_arg *resp_arg = malloc(sizeof(struct async_resp_arg));
         resp_arg->hd = handle;
         resp_arg->fd = httpd_req_to_sockfd(req);
@@ -1460,13 +1460,17 @@ static esp_err_t ota_handler(httpd_req_t *req)
 
 static esp_err_t can_handler(httpd_req_t *req)
 {
+#ifdef DEBUG
     printf("######################11\n");
+#endif
     if (req->method == HTTP_GET)
-    {
+    {     
         ESP_LOGI(TAG, "Handshake done, the new connection was opened");
         return ESP_OK;
     }
+#ifdef DEBUG    
     printf("######################22\n");
+#endif    
     httpd_ws_frame_t ws_pkt;
     uint8_t *buf = NULL;
     
@@ -1484,7 +1488,9 @@ static esp_err_t can_handler(httpd_req_t *req)
         ESP_LOGE(TAG, "httpd_ws_recv_frame failed to get frame len with %d", ret);
         return ret;
     }
+#ifdef DEBUG    
     printf("frame len is %d\n", ws_pkt.len);
+#endif
     if (ws_pkt.len)
     {
         buf = calloc(1, ws_pkt.len + 1);
@@ -1493,8 +1499,10 @@ static esp_err_t can_handler(httpd_req_t *req)
             ESP_LOGE(TAG, "Failed to calloc memory for buf");
             return ESP_ERR_NO_MEM;
         }
+#ifdef DEBUG        
         else
             printf("can=%4.4x\n", *buf);
+#endif            
         ws_pkt.payload = buf;
 
         ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
@@ -1504,17 +1512,32 @@ static esp_err_t can_handler(httpd_req_t *req)
             free(buf);
             return ret;
         }
-        ESP_LOGI(TAG, "Got packet with message: %s", ws_pkt.payload);
+        //ESP_LOGI(TAG, "Got packet with message: %s", ws_pkt.payload);
     }
-    ESP_LOGI(TAG, "Packet type: %d", ws_pkt.type);
+    //ESP_LOGI(TAG, "Packet type: %d", ws_pkt.type);
+#ifdef DEBUG    
     if (buf != NULL)
         printf("can buffer=%2.2x-%2.2x\n", buf[0], buf[1]);
+#endif
     //parse_can_message(buf,ws_pkt.len);    
 
     parse_resp_arg *resp_arg = malloc(sizeof(parse_resp_arg));
     memcpy(resp_arg->buf,buf,ws_pkt.len);
+    free(buf);
     resp_arg->len=ws_pkt.len;
-    httpd_queue_work(handle, ws_async_parse, resp_arg);
+    httpd_queue_work(handle, ws_async_parse, resp_arg);  //@20210819
+    //ws_async_parse(resp_arg);   //--ï¿½È½ï¿½ï¿½È¶ï¿½
+
+    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ACK
+    httpd_ws_frame_t ws_pkt1;
+    uint8_t buf1[3]={0};
+    buf1[1]=2;
+    memset(&ws_pkt1, 0, sizeof(httpd_ws_frame_t));
+    ws_pkt1.payload = (uint8_t *)buf1; //(uint8_t*)data;
+    ws_pkt1.len = 2;        // strlen(data);
+    ws_pkt1.type = HTTPD_WS_TYPE_BINARY;
+    httpd_ws_send_frame_async(handle, httpd_req_to_sockfd(req), &ws_pkt1);
+    //
 
     // buf[0],buf[1] == 0x00,0x00;   
     //if (buf[0] == 0 && buf[1] == 0)
@@ -1603,7 +1626,7 @@ esp_err_t start_server()
 
     return ESP_OK;
 }
-//Ìí¼ÓÐÅºÅÁ¿£¬ÔÚÆäËûÐèÒªÏÔÊ¾Ê±½«´ËÈÎÎñÔÝÍ£¡£
+//ï¿½ï¿½ï¿½ï¿½ï¿½Åºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½Ê¾Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½ï¿½
 void send_to_all(void *p)
 {
     while (1)
@@ -1658,7 +1681,7 @@ void app_main(void)
     xTaskCreate(tcp_server_task, "tcp_server", 40960, (void *)AF_INET6, 5, NULL);
 #endif
     start_server();
-    sys_delay_ms(10000);
+    sys_delay_ms(5000);
     
     //void twai_receive_task(void *arg);
     ///void twai_send_task(void *arg);
@@ -1691,7 +1714,7 @@ void app_main(void)
     {
         buff[i]=0;
     }
-    sprintf(buff,"AP SSID:%s,ÃÜÂë:%s",EXAMPLE_ESP_WIFIAP_SSID,EXAMPLE_ESP_WIFIAP_PASS);
+    sprintf(buff,"AP SSID:%s,ï¿½ï¿½ï¿½ï¿½:%s",EXAMPLE_ESP_WIFIAP_SSID,EXAMPLE_ESP_WIFIAP_PASS);
     //text_out(buff,0,48);invalidate();
 
     //xTaskCreate(send_to_all, "send_to_all", 4096, NULL, 5, NULL);
