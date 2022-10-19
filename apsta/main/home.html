@@ -110,6 +110,11 @@
     </table>
     <br>
     <label>发送次数&nbsp&nbsp</label><input type="text" value="1" id="can_send_count">&nbsp&nbsp</input><button id="send_button" onclick="can_send_button_clicked()">发送</button>
+    <label>&nbsp&nbsp</label>
+    <button id="send_button_rand" onclick="can_send_button_rand_clicked()">随机发送</button>
+    <label>&nbsp&nbsp&nbsp&nbsp</label>
+    <button id="calc_crc_button" onclick="fun_calc_crc_button()">计算CRC</button>
+    <label id="label_crc">&nbsp&nbsp</label>
     <br>
     <div id="id_div_can_content">
         <table border="1">
@@ -179,6 +184,9 @@
         time_out_flag=0;
         var timeID=null;
         interID=0;
+        let frame_cnt=0;
+        line_mod=0;
+        send_cnt=0;
         function set_path()
         {
             var dpath = document.getElementById("sel_file").files[0].name;
@@ -349,7 +357,7 @@
         
             return str;   
         }   
-        let frame_cnt=0;
+
         function onmessage2(event) {
             console.log("on message2");
             console.log(event.data);
@@ -409,7 +417,7 @@
                         strDate=newDate.format("YYYY/MM/DD HH:mm:SS");
                         console.log(strDate);
                         //line1="报文计数："+frame_cnt.toString()+(ext==1?" 扩展帧":" 标准帧")+(r_frame==1?" 远程帧":" 数据帧")+" ID:0x"+id.toString(16)+"时间："+year+"/"+(month+1)+"/"+date+" "+hour+":"+minutes+":"+second;
-                        line1="报文计数："+frame_cnt.toString()+(ext==1?" 扩展帧":" 标准帧")+(r_frame==1?" 远程帧":" 数据帧")+" ID:0x"+id.toString(16);
+                        line1="接收报文计数："+frame_cnt.toString()+(ext==1?" 扩展帧":" 标准帧")+(r_frame==1?" 远程帧":" 数据帧")+" ID:0x"+id.toString(16);
                         if(len1>8)
                         {
                             line1+=" 字节数:"+(len1-8).toString()+" "+strDate;
@@ -422,9 +430,12 @@
                         console.log(line1);
                         console.log(content);
                         document.getElementById("can_rec_disp").innerHTML=document.getElementById("can_rec_disp").innerHTML+line1;
-                        document.getElementById("can_rec_disp").innerHTML=document.getElementById("can_rec_disp").innerHTML+content+"\n";
+                        document.getElementById("can_rec_disp").innerHTML=document.getElementById("can_rec_disp").innerHTML+content+"\n\n";
                         textarea1=document.getElementById("can_rec_disp");
                         textarea1.scroll({ top: textarea1.scrollHeight, left: 0, behavior: "smooth" });
+                        line_mod++;
+                        if(line_mod%1000==0)
+                            document.getElementById("can_rec_disp").innerHTML="";
                     }
                     if(dbuf.getUint8(0)==0&&dbuf.getUint8(1)==2)
                     {
@@ -565,6 +576,8 @@
         function clr_can_disp_func()
         {
             document.getElementById("can_rec_disp").innerHTML="";
+            send_cnt=0;
+            frame_cnt=0;
         }    
         function onClose() {
             //writeToScreen("closed");
@@ -734,7 +747,7 @@
         }
 
 
-        function can_send_func()
+        function can_send_func(enable_send=1)
         {
             var send_data=document.getElementsByName("send_text");
                 data_len=0;
@@ -788,7 +801,7 @@
                 vdata_buf.setUint8(5,(id_v>>8)&0xff );
                 vdata_buf.setUint8(6,(id_v>>16)&0xff );
                 vdata_buf.setUint8(7,(id_v>>24)&0xff );
-
+                strSendData="";
                 for(i=0;i<data_len;i=i+1)
                 {
                     array_index=parseInt(send_data[i].id);
@@ -796,9 +809,151 @@
                 
                     if(array_index<data_len)
                         vdata_buf.setUint8(array_index+8,tdata);
+                    if(i!=0)
+                        strSendData=strSendData+" ";
+                    strSendData=strSendData+tdata.toString(16);
+                    if(i==data_len-1)
+                        strSendData=strSendData+"\n";
                 }
                 console.log(vdata_buf);
+                //报文计数：1 扩展帧 数据帧 ID:0x678 字节数:8 2022/10/18 21:28:42
+                //88-88-88-88-88-88-88-88
+                send_cnt++;
+                line1="发送报文计数："+send_cnt+(frame_style==1?" 扩展帧":" 标准帧")+(data_style==1?" 远程帧":" 数据帧")+" ID:0x"+id_v.toString(16);
+                newDate = new Date();
+                strDate=newDate.format("YYYY/MM/DD HH:mm:SS");
+                //if(data_len>8)
+                //{
+                    line1+=" 字节数:"+(data_len).toString()+" "+strDate;
+                //}
+                //else
+                //{
+                //   line1+=" 字节数:"+"0"+" "+strDate;
+                //}
+                line1+="\n";
+                console.log(line1);
+                line1+=strSendData;
 
+                document.getElementById("can_rec_disp").innerHTML=document.getElementById("can_rec_disp").innerHTML+line1;
+                //document.getElementById("can_rec_disp").innerHTML=document.getElementById("can_rec_disp").innerHTML+"\n";
+                textarea1=document.getElementById("can_rec_disp");
+                
+
+                textarea1.scroll({ top: textarea1.scrollHeight, left: 0, behavior: "smooth" });
+
+                can_crc_calc(data_buf);
+                //命令2：设置帧格式，数据格式和波特率 01-根据数据的长度决定的
+                if(enable_send==1)
+                    if(socket2.readyState == WebSocket.OPEN)
+                        socket2.send(vdata_buf.buffer);
+                //CanSendCnt=CanSendCnt+1;
+                //console.log("CanSendCnt=",CanSendCnt);
+                //if(CanSendCnt==SendCnt)
+                //{
+                //    console.log("Stop InterVal");
+                //    clearInterval(interID);
+                //}
+        }
+
+        function can_send_func_random()
+        {
+            var send_data=document.getElementsByName("send_text");
+                data_len=0;
+
+                x=document.getElementsByName("can_style_sel");
+                frame_style=0;
+                data_style =0;
+                for(f of x)
+                {
+                    if(f.checked==true)
+                    {
+                        console.log(f.value);
+                        if(f.value=="std_frame")
+                            frame_style=0;
+                        else
+                            frame_style=1;
+                    }
+                }
+                console.log(x);
+                x=document.getElementsByName("frame_style_sel");
+                for(f of x)
+                {
+                    if(f.checked==true)
+                    {
+                        console.log(f.value);
+                        if(f.value=="data_frame")
+                            data_style=0;
+                        else
+                            data_style=1;
+                    }
+                }
+                console.log(x);
+                //id_t=document.getElementById("can_id").value;
+                //int nextlnt(int n)	生成一个随机的 int 值，该值介于 [0,n)，包含 0 而不包含 n。如果想生成指定区间的 int 值，也需要进行一定的数学变换
+                id_t=parseInt(Math.random()*(0x1fffffff+1),10);
+                id_t=id_t&0x1fffffff;
+                /*
+                for(i=0;i<send_data.length;i=i+1)
+                {
+                    if(send_data[i].value=="")
+                        break;
+                    data_len++;    
+                    console.log(send_data[i].value);
+                }
+                */
+                data_len=parseInt(Math.random()*(8+1),10);//0-8随机数
+                let data_buf=new ArrayBuffer(data_len+8);
+                let vdata_buf=new DataView(data_buf);
+                vdata_buf.setUint8(0,0);
+                vdata_buf.setUint8(1,1);
+                vdata_buf.setUint8(2,frame_style);
+                vdata_buf.setUint8(3,data_style );
+                //id
+                id_v=id_t;//parseInt(id_t,16);
+                vdata_buf.setUint8(4,id_v&0xff );
+                vdata_buf.setUint8(5,(id_v>>8)&0xff );
+                vdata_buf.setUint8(6,(id_v>>16)&0xff );
+                vdata_buf.setUint8(7,(id_v>>24)&0xff );
+                strSendData="";
+                for(i=0;i<data_len;i=i+1)
+                {
+                    //array_index=parseInt(send_data[i].id);
+                    //tdata=parseInt(send_data[array_index].value,16);
+                    tdata=parseInt(Math.random()*(255+1),10);
+                    //if(array_index<data_len)
+                        vdata_buf.setUint8(i+8,tdata);
+                    if(i!=0)
+                        strSendData=strSendData+" ";
+                    strSendData=strSendData+tdata.toString(16);
+                    if(i==data_len-1)
+                        strSendData=strSendData+"\n";
+                }
+                console.log(vdata_buf);
+                send_cnt++;
+                line1="发送报文计数："+send_cnt+(frame_style==1?" 扩展帧":" 标准帧")+(data_style==1?" 远程帧":" 数据帧")+" ID:0x"+id_v.toString(16);
+                newDate = new Date();
+                strDate=newDate.format("YYYY/MM/DD HH:mm:SS");
+                //if(data_len>8)
+                //{
+                    line1+=" 字节数:"+data_len.toString()+" "+strDate;
+                //}
+                //else
+                //{
+                //    line1+=" 字节数:"+"0"+" "+strDate;
+                //}
+                line1+="\n";
+                console.log(line1);
+                line1+=strSendData;
+
+                document.getElementById("can_rec_disp").innerHTML=document.getElementById("can_rec_disp").innerHTML+line1;
+                //document.getElementById("can_rec_disp").innerHTML=document.getElementById("can_rec_disp").innerHTML+"\n";
+                textarea1=document.getElementById("can_rec_disp");
+                
+
+                textarea1.scroll({ top: textarea1.scrollHeight, left: 0, behavior: "smooth" });
+
+
+                can_crc_calc(data_buf)
                 //命令2：设置帧格式，数据格式和波特率 01-根据数据的长度决定的
                 if(socket2.readyState == WebSocket.OPEN)
                     socket2.send(vdata_buf.buffer);
@@ -811,18 +966,22 @@
                 //}
         }
 
-        function sequence()
+        function sequence(arg)
         {
             if(CanSendCntPre==CanSendCnt)
             {
-                can_send_func();
+                if(arg==0)
+                    can_send_func();
+                else
+                    can_send_func_random();
                 CanSendCntPre=CanSendCntPre+1;
             }
-            if(CanSendCntPre==SendCnt||time_out_flag==1)
+            if(CanSendCntPre>=SendCnt||time_out_flag==1)//2022-10-17 from > to >=
             {
                 clearInterval(interID);
                 clearTimeout(timeID);
                 timeID=null;
+                interID=null;
                 if(time_out_flag==1)
                     console.log("Time Out&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&");
                 else
@@ -849,7 +1008,12 @@
             timeID=setTimeout(function(){
                 time_out_flag=1;
             },10000);
-            interID=setInterval(sequence,1);
+            if(interID!=null)
+            {
+                clearInterval(interID);
+                interID=null;
+            }
+            interID=setInterval(sequence,1,0);
             /*
             for(i=0;i<SendCnt;i++)
             {
@@ -932,6 +1096,171 @@
                     socket2.send(vdata_buf.buffer);
             */
         }
+
+        function can_send_button_rand_clicked()
+        {
+            //document.getElementById("id_div_can_content").innerHTML="<br><button >test</button>";
+            //获取发送次数
+            SendCnt=document.getElementById("can_send_count").value;
+            SendCnt=parseInt(SendCnt);
+
+            CanSendCnt=0;
+            CanSendCntPre=0;
+            if(timeID!=null)
+            {
+                clearTimeout(timeID);
+                timeID=null;
+                console.log("time ID not null ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+            }
+            time_out_flag=0;
+            timeID=setTimeout(function(){
+                time_out_flag=1;
+            },10000);
+            interID=setInterval(sequence,1,1);
+        }
+        function fun_calc_crc_button()
+        {
+            can_send_func(0);
+        }
+        function can_crc_calc(data_buf)
+        {
+            let vdata_buf=new DataView(data_buf);
+            //vdata_buf.setUint8(0,0);
+            //vdata_buf.setUint8(1,1);
+            frame_style=vdata_buf.getUint8(2);
+            data_style =vdata_buf.getUint8(3);
+            //id
+            //id_v=id_t;//parseInt(id_t,16);
+            id_v=vdata_buf.getUint8(4)+(vdata_buf.getUint8(5)<<8)+(vdata_buf.getUint8(6)<<16)+(vdata_buf.getUint8(7)<<24);
+            dlc=vdata_buf.byteLength-8;
+            /*
+            if(ide==0)//标准帧
+	        begin
+		        if(rtr==1'b0) //数据帧
+			       can_data={>>{1'b0,id[28:18],rtr,ide,1'b0,dlc,send_data}};
+		        else     //远程帧
+			       can_data={>>{1'b0,id[28:18],rtr,ide,1'b0,dlc}};
+	        end
+	        else      //扩展帧
+	        begin
+		    if(rtr==1'b0)
+			    can_data={>>{1'b0,id[28:18],1'b1,ide,id[17:0],rtr,2'b0,dlc,send_data}};
+		    else
+			    can_data={>>{1'b0,id[28:18],1'b1,ide,id[17:0],rtr,2'b0,dlc}};
+	        end         
+            */
+            array=new Array;
+            array.push(0);
+            
+            if(frame_style==0)
+            {
+                //标准帧
+                for(i=0;i<11;i++)
+                {
+                    if(id_v&(1<<(28-i)))
+                        array.push(1);
+                    else 
+                        array.push(0);  
+                }    
+                array.push(data_style);
+                array.push(frame_style);
+                array.push(0);
+
+            }
+            else
+            {
+                for(i=0;i<11;i++)
+                {
+                    if(id_v&(1<<(28-i)))
+                        array.push(1);
+                    else 
+                        array.push(0);  
+                }    
+                array.push(1);
+                array.push(frame_style);
+                for(i=0;i<18;i++)
+                {
+                    if(id_v&(1<<(17-i)))
+                        array.push(1);
+                    else 
+                        array.push(0);  
+                }    
+
+                array.push(data_style);
+                array.push(0);
+                array.push(0);
+
+            }
+
+            for(i=0;i<4;i++)
+            {
+                if(dlc&(1<<(3-i)))
+                    array.push(1);
+                else 
+                    array.push(0);  
+            }
+                
+            if(data_style==0)//数据帧
+            {
+                for(i=0;i<dlc;i++)
+                {
+                //array_index=parseInt(send_data[i].id);
+                //tdata=parseInt(send_data[array_index].value,16);
+                //tdata=parseInt(Math.random()*(255+1),10);
+                //if(array_index<data_len)
+                //vdata_buf.setUint8(i+8,tdata);
+                    data_tmp=vdata_buf.getUint8(8+i);
+                    for(j=0;j<8;j++)
+                    {
+                        if(data_tmp&(1<<(7-j)))
+                            array.push(1);
+                        else 
+                            array.push(0);  
+                    }
+                }
+            }
+            
+            console.log(vdata_buf);
+   
+            console.log(array);
+            console.log("calc CRC");
+            /*
+            function bit[14:0] gen_crc(input bit send_data[$]);
+	bit[14:0]	crc_line	=0	;
+	bit			crc_next		;
+	bit[14:0]	crc_line_next	;
+	foreach(send_data[i])
+	begin
+		crc_next=send_data[i]^crc_line[14];
+		crc_line_next={crc_line[13:0],1'b0};
+
+		if(crc_next==1'b1)
+			crc_line=crc_line_next^15'h4599;
+		else 
+			crc_line=crc_line_next;
+	end
+	if(crc_line[4:0]==0)
+	begin
+		$display("CRC_LOW 5bit is 0,crc=%x",crc_line);
+		$display("send_data=%2.2x%2.2x-%2.2x%2.2x-%2.2x%2.2x-%2.2x%2.2x",this.send_data[0],this.send_data[1],this.send_data[2],this.send_data[3],this.send_data[4],this.send_data[5],this.send_data[6],this.send_data[7]);
+	end
+	return crc_line;
+endfunction
+*/
+            crc_line=0;
+            crc_next =0;
+            crc_line_next=0;
+            for(i=0;i<array.length;i++)
+            {
+                crc_next=array[i]^((crc_line>>14)&1);
+                crc_line_next=((crc_line&0x3fff)<<1);
+                if(crc_next)
+                    crc_line=crc_line_next^0x4599;
+                else
+                    crc_line=crc_line_next;
+            }
+            document.getElementById("label_crc").innerHTML=crc_line.toString(16);
+    }
     </script>
 </body>
 

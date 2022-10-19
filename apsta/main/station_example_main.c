@@ -1688,7 +1688,7 @@ void app_main(void)
     //void twai_routine(void *arg);
     xTaskCreatePinnedToCore(twai_routine, "twai_routine",4096, NULL, 2, NULL,tskNO_AFFINITY);
     xTaskCreatePinnedToCore(twai_send_task, "twai_send_task",4096, NULL, 1, NULL,tskNO_AFFINITY);
-    xTaskCreatePinnedToCore(twai_receive_task, "twai_receive_task",4096, NULL, 0, NULL,tskNO_AFFINITY);
+    xTaskCreatePinnedToCore(twai_receive_task, "twai_receive_task",4096, NULL, 10, NULL,tskNO_AFFINITY);
     esp_netif_t *netif = NULL;
     char buff[128]={0};
     //clr_disp();
